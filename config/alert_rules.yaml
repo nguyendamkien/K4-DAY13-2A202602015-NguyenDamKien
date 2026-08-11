@@ -1,19 +1,22 @@
 alerts:
-  - name: TODO_alert_1
-    severity: TODO
-    condition: TODO
+  - name: high_tail_latency
+    severity: warning
+    condition: "p95(response_sent.latency_ms) > 3000ms for 5m"
+    duration: 5m
     type: symptom-based
-    owner: TODO
+    owner: platform-observability
     runbook: docs/alerts.md#alert-1
-  - name: TODO_alert_2
-    severity: TODO
-    condition: TODO
+  - name: elevated_error_rate
+    severity: critical
+    condition: "error_rate(request_failed / request_received) > 2% for 5m"
+    duration: 5m
     type: symptom-based
-    owner: TODO
+    owner: platform-observability
     runbook: docs/alerts.md#alert-2
-  - name: TODO_alert_3
-    severity: TODO
-    condition: TODO
+  - name: daily_cost_budget_breach
+    severity: warning
+    condition: "sum(response_sent.cost_usd) > 2.5 USD in the current day"
+    window: 1d
     type: symptom-based
-    owner: TODO
+    owner: platform-observability
     runbook: docs/alerts.md#alert-3
