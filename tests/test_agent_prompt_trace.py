@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
+
 from app import agent as agent_module
 
 
@@ -19,6 +21,7 @@ class RecordingLangfuseClient:
         self.prompt = ManagedPrompt()
         self.trace_updates: list[dict] = []
         self.generation_updates: list[dict] = []
+        self.observations: list[dict] = []
 
     def get_prompt(self, name: str, **kwargs):
         return self.prompt
@@ -28,6 +31,21 @@ class RecordingLangfuseClient:
 
     def update_current_generation(self, **kwargs) -> None:
         self.generation_updates.append(kwargs)
+
+    @contextmanager
+    def start_as_current_observation(self, **kwargs):
+        observation = RecordingObservation(self.observations, kwargs)
+        yield observation
+
+
+class RecordingObservation:
+    def __init__(self, collection: list[dict], definition: dict) -> None:
+        self.collection = collection
+        self.definition = definition
+        self.collection.append({"definition": definition, "updates": []})
+
+    def update(self, **kwargs) -> None:
+        self.collection[-1]["updates"].append(kwargs)
 
 
 def test_agent_links_prompt_version_to_trace_and_generation(monkeypatch) -> None:
@@ -57,3 +75,48 @@ def test_agent_links_prompt_version_to_trace_and_generation(monkeypatch) -> None
     }
     assert generation_update["prompt"] is client.prompt
     assert generation_update["metadata"]["prompt_version"] == "3"
+    assert [item["definition"]["name"] for item in client.observations] == [
+        "retrieval",
+        "fake-llm-generation",
+    ]
+
+
+class ModernObservationClient:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, dict]] = []
+
+    @contextmanager
+    def start_as_current_span(self, **kwargs):
+        self.calls.append(("span", kwargs))
+        yield RecordingObservation([], kwargs)
+
+    @contextmanager
+    def start_as_current_generation(self, **kwargs):
+        self.calls.append(("generation", kwargs))
+        yield RecordingObservation([], kwargs)
+
+
+def test_current_observation_adapts_to_langfuse_32_methods() -> None:
+    client = ModernObservationClient()
+
+    with agent_module._current_observation(
+        client,
+        as_type="span",
+        name="retrieval",
+    ):
+        pass
+    with agent_module._current_observation(
+        client,
+        as_type="generation",
+        name="fake-llm-generation",
+        model="claude-sonnet-4-5",
+    ):
+        pass
+
+    assert client.calls == [
+        ("span", {"name": "retrieval"}),
+        (
+            "generation",
+            {"name": "fake-llm-generation", "model": "claude-sonnet-4-5"},
+        ),
+    ]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import secrets
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -20,6 +21,18 @@ log = get_logger()
 app = FastAPI(title="Day 13 Observability Lab")
 app.add_middleware(CorrelationIdMiddleware)
 agent = LabAgent()
+
+
+def _incident_access_allowed(request: Request) -> bool:
+    """Keep the lab control plane local unless an explicit token is set."""
+
+    configured_token = os.getenv("INCIDENT_ADMIN_TOKEN")
+    if configured_token:
+        supplied_token = request.headers.get("x-admin-token", "")
+        return secrets.compare_digest(supplied_token, configured_token)
+
+    host = request.client.host if request.client else None
+    return host in {"127.0.0.1", "::1", "testclient"}
 
 
 @app.on_event("startup")
@@ -44,15 +57,14 @@ async def metrics() -> dict:
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: Request, body: ChatRequest) -> ChatResponse:
-    # TODO: Enrich logs with request context (user_id_hash, session_id, feature, model, env)
     bind_contextvars(
         user_id_hash=hash_user_id(body.user_id),
         session_id=body.session_id,
         feature=body.feature,
-        model="claude-sonnet-4-5",
+        model=agent.model,
         env=os.getenv("APP_ENV", "dev"),
     )
-    
+
     log.info(
         "request_received",
         service="api",
@@ -97,7 +109,9 @@ async def chat(request: Request, body: ChatRequest) -> ChatResponse:
 
 
 @app.post("/incidents/{name}/enable")
-async def enable_incident(name: str) -> JSONResponse:
+async def enable_incident(request: Request, name: str) -> JSONResponse:
+    if not _incident_access_allowed(request):
+        raise HTTPException(status_code=403, detail="incident controls are local-only")
     try:
         enable(name)
         log.warning("incident_enabled", service="control", payload={"name": name})
@@ -107,7 +121,9 @@ async def enable_incident(name: str) -> JSONResponse:
 
 
 @app.post("/incidents/{name}/disable")
-async def disable_incident(name: str) -> JSONResponse:
+async def disable_incident(request: Request, name: str) -> JSONResponse:
+    if not _incident_access_allowed(request):
+        raise HTTPException(status_code=403, detail="incident controls are local-only")
     try:
         disable(name)
         log.warning("incident_disabled", service="control", payload={"name": name})

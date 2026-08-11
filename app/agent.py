@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import re
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
+from typing import Any, Iterator
 
 from structlog.contextvars import get_contextvars
 
@@ -11,6 +14,26 @@ from .mock_rag import retrieve
 from .pii import hash_user_id, summarize_text
 from .prompt_management import resolve_prompt
 from .tracing import get_langfuse_client, observe, tracing_enabled
+
+
+@contextmanager
+def _current_observation(client: Any, **kwargs: Any) -> Iterator[Any | None]:
+    """Create a nested observation across Langfuse SDK generations."""
+
+    observation_type = kwargs.pop("as_type", "span")
+    starter = getattr(client, "start_as_current_observation", None)
+    if not callable(starter):
+        method_name = (
+            "start_as_current_generation"
+            if observation_type == "generation"
+            else "start_as_current_span"
+        )
+        starter = getattr(client, method_name, None)
+    if not callable(starter):
+        yield None
+        return
+    with starter(**kwargs) as observation:
+        yield observation
 
 
 @dataclass
@@ -31,8 +54,16 @@ class LabAgent:
     @observe(as_type="generation", capture_input=False, capture_output=False)
     def run(self, user_id: str, feature: str, session_id: str, message: str) -> AgentResult:
         started = time.perf_counter()
-        docs = retrieve(message)
         langfuse_client = get_langfuse_client()
+        with _current_observation(
+            langfuse_client,
+            as_type="span",
+            name="retrieval",
+        ) as retrieval_span:
+            docs = retrieve(message)
+            if retrieval_span is not None and hasattr(retrieval_span, "update"):
+                retrieval_span.update(metadata={"doc_count": len(docs)})
+
         prompt = resolve_prompt(
             langfuse_client,
             feature=feature,
@@ -40,16 +71,43 @@ class LabAgent:
             message=message,
             enabled=tracing_enabled(),
         )
-        response = self.llm.generate(prompt.text)
+        with _current_observation(
+            langfuse_client,
+            as_type="generation",
+            name="fake-llm-generation",
+            model=self.model,
+        ) as generation:
+            response = self.llm.generate(prompt.text)
+            if generation is not None and hasattr(generation, "update"):
+                generation.update(
+                    usage_details={
+                        "prompt_tokens": response.usage.input_tokens,
+                        "completion_tokens": response.usage.output_tokens,
+                    },
+                )
         quality_score = self._heuristic_quality(message, response.text, docs)
         latency_ms = int((time.perf_counter() - started) * 1000)
         cost_usd = self._estimate_cost(response.usage.input_tokens, response.usage.output_tokens)
 
+        trace_feature = feature if re.fullmatch(r"[A-Za-z0-9_-]{1,32}", feature) else "unknown"
+        trace_metadata = {
+            "prompt_name": prompt.name,
+            "prompt_label": prompt.label,
+            "prompt_version": prompt.version,
+            "prompt_source": prompt.source,
+        }
+        correlation_id = get_contextvars().get("correlation_id")
+        if correlation_id:
+            trace_metadata["correlation_id"] = correlation_id
+
         langfuse_client.update_current_trace(
             user_id=hash_user_id(user_id),
-            session_id=session_id,
-            tags=["lab", feature, self.model],
-            metadata={"correlation_id": get_contextvars().get("correlation_id", "MISSING")},
+            # Keep raw request identifiers in local logs for correlation, but
+            # send only pseudonymous values and an allowlisted feature tag to
+            # the external tracing system.
+            session_id=hash_user_id(session_id),
+            tags=["lab", f"feature:{trace_feature}", self.model],
+            metadata=trace_metadata,
         )
         langfuse_client.update_current_generation(
             model=self.model,
