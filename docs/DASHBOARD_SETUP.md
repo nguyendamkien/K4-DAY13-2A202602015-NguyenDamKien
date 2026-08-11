@@ -22,6 +22,13 @@ Giữ time range mặc định 60 phút, refresh 30 giây và hiển thị thres
 1. Hoàn thiện logging/PII và chạy API.
 2. Chạy `python scripts/load_test.py --concurrency 5` để tạo baseline.
 3. Dùng `data/logs.jsonl` làm nguồn chuẩn để tạo đúng sáu panel bằng Streamlit, notebook, Grafana hoặc công cụ tương đương. Langfuse vẫn là nơi mở trace/prompt version để điều tra sâu.
+   Repo có dashboard Streamlit mẫu; chạy từ thư mục gốc bằng:
+
+   ```bash
+   streamlit run dashboard/app.py
+   ```
+
+   Dashboard tự đọc contract trong `config/dashboard.yaml`, lọc cửa sổ 60 phút và tự refresh theo `refresh_seconds`.
 4. Đặt tên panel, đơn vị và threshold giống contract.
 5. Chạy validator:
 
