@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
 import httpx
+from dotenv import load_dotenv
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
@@ -18,6 +20,7 @@ BASE_URL = "http://127.0.0.1:8000"
 
 def main() -> None:
     configure_utf8_stdio()
+    load_dotenv(REPO_ROOT / ".env")
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--scenario",
@@ -29,7 +32,10 @@ def main() -> None:
 
     scenario = resolve_incident(args.scenario)
     path = f"/incidents/{scenario}/disable" if args.disable else f"/incidents/{scenario}/enable"
-    r = httpx.post(f"{BASE_URL}{path}", timeout=10.0)
+    headers = {}
+    if os.getenv("INCIDENT_ADMIN_TOKEN"):
+        headers["x-admin-token"] = os.environ["INCIDENT_ADMIN_TOKEN"]
+    r = httpx.post(f"{BASE_URL}{path}", headers=headers, timeout=10.0)
     print(r.status_code, r.json())
 
 
