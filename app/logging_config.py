@@ -23,25 +23,25 @@ class JsonlFileProcessor:
 
 
 
-# def scrub_event(_: Any, __: str, event_dict: dict[str, Any]) -> dict[str, Any]:
-#     payload = event_dict.get("payload")
-#     if isinstance(payload, dict):
-#         event_dict["payload"] = {
-#             k: scrub_text(v) if isinstance(v, str) else v for k, v in payload.items()
-#         }
-#     if "event" in event_dict and isinstance(event_dict["event"], str):
-#         event_dict["event"] = scrub_text(event_dict["event"])
-#     return event_dict
+def _scrub_value(value: Any) -> Any:
+    if isinstance(value, str):
+        return scrub_text(value)
+    if isinstance(value, dict):
+        return {key: _scrub_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_scrub_value(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_scrub_value(item) for item in value)
+    return value
+
 
 def scrub_event(_: Any, __: str, event_dict: dict[str, Any]) -> dict[str, Any]:
-    for key, val in event_dict.items():
-        if isinstance(val, str):
-            event_dict[key] = scrub_text(val)
-        elif isinstance(val, dict):
-            event_dict[key] = {
-                k: scrub_text(v) if isinstance(v, str) else v for k, v in val.items()
-            }
+    """Redact PII from every string before the event reaches a renderer."""
+
+    for key, value in list(event_dict.items()):
+        event_dict[key] = _scrub_value(value)
     return event_dict
+
 
 
 def configure_logging() -> None:
@@ -51,10 +51,10 @@ def configure_logging() -> None:
             merge_contextvars,
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso", utc=True, key="ts"),
-            # TODO: Register your PII scrubbing processor here
-            scrub_event,
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
+            # Run after exception formatting so traceback text is scrubbed too.
+            scrub_event,
             JsonlFileProcessor(),
             structlog.processors.JSONRenderer(),
         ],

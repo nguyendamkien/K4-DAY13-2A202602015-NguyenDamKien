@@ -62,11 +62,12 @@ Nếu file chưa được release, script sẽ dừng và yêu cầu chờ Lab C
 ## Cấu trúc repo
 
 ```text
-app/          API, agent, logging, metrics, tracing và PII
-config/       log schema, dashboard contract, SLO, alert và challenge được release
-data/         dữ liệu practice và log sinh ra khi chạy
+    app/          API, agent, logging, metrics, tracing và PII
+    config/       log schema, dashboard contract, SLO, alert và challenge được release
+    dashboard/    dashboard Streamlit đọc data/logs.jsonl
+    data/         dữ liệu practice và log sinh ra khi chạy
 docs/         hướng dẫn, dashboard spec và biểu mẫu bằng chứng
-scripts/      load test, inject incident và kiểm tra log
+    scripts/      load test, inject incident và kiểm tra log
 tests/        public tests
 submission/   báo cáo và evidence phải nộp
 ```

@@ -1,34 +1,41 @@
 import json
 import re
 import sys
+import argparse
 from pathlib import Path
 
-LOG_PATH = Path("data/logs.jsonl")
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from app.pii import PII_PATTERNS
+
+
+LOG_PATH = REPO_ROOT / "data" / "logs.jsonl"
 REQUIRED_FIELDS = {"ts", "level", "service", "event", "correlation_id"}
 ENRICHMENT_FIELDS = {"user_id_hash", "session_id", "feature", "model"}
 PII_DETECTORS = {
-    "email": re.compile(r"[\w.-]+@[\w.-]+\.\w+"),
-    "phone_vn": re.compile(r"(?<!\d)(?:\+84|0)(?:[ .-]?\d){9}(?!\d)"),
-    "cccd": re.compile(r"\b\d{12}\b"),
-    "credit_card": re.compile(r"\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b"),
+    name: re.compile(pattern) for name, pattern in PII_PATTERNS.items()
 }
 
-def main() -> None:
-    if not LOG_PATH.exists():
-        print(f"Error: {LOG_PATH} not found. Run the app and send some requests first.")
+def main(log_path: Path | None = None) -> None:
+    path = log_path or LOG_PATH
+    if not path.exists():
+        print(f"Error: {path} not found. Run the app and send some requests first.")
         sys.exit(1)
 
     records = []
-    for line in LOG_PATH.read_text(encoding="utf-8").splitlines():
+    invalid_json = 0
+    for line in path.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
         try:
             records.append(json.loads(line))
         except json.JSONDecodeError:
-            continue
+            invalid_json += 1
 
     if not records:
-        print("Error: No valid JSON logs found in data/logs.jsonl")
+        print(f"Error: No valid JSON logs found in {path}")
         sys.exit(1)
 
     total = len(records)
@@ -67,6 +74,7 @@ def main() -> None:
 
     print("--- Lab Verification Results ---")
     print(f"Total log records analyzed: {total}")
+    print(f"Invalid JSON lines: {invalid_json}")
     print(f"Records with missing required fields: {missing_required}")
     print(f"Records with missing enrichment (context): {missing_enrichment}")
     print(f"Unique correlation IDs found: {len(correlation_ids)}")
@@ -79,6 +87,11 @@ def main() -> None:
     
     print("\n--- Grading Scorecard (Estimates) ---")
     score = 100
+    if invalid_json > 0:
+        score -= 30
+        print("- [FAILED] Invalid JSON log lines")
+    else:
+        print("+ [PASSED] All log lines are valid JSON")
     if missing_required > 0:
         score -= 30
         print("- [FAILED] Missing required fields (ts, level, etc.)")
@@ -106,4 +119,12 @@ def main() -> None:
     print(f"\nEstimated Score: {max(0, score)}/100")
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Validate Day 13 JSONL logs")
+    parser.add_argument(
+        "--log-path",
+        type=Path,
+        default=LOG_PATH,
+        help="Path to the JSONL log file to validate",
+    )
+    args = parser.parse_args()
+    main(args.log_path)

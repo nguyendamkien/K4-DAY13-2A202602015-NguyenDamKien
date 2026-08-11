@@ -43,6 +43,8 @@ LANGFUSE_PROMPT_LABEL=production
 
 Không commit `.env`. Nếu chưa có key, app vẫn chạy bằng prompt local; bạn vẫn làm được log, metrics và public tests nhưng chưa có evidence trace/prompt version.
 
+Đặt `PII_HASH_SECRET` trong môi trường dùng chung để user/session hash khó bị đoán lại. Có thể đặt `INCIDENT_ADMIN_TOKEN` để bảo vệ các endpoint practice `/incidents/*`; khi biến này có giá trị, script `scripts/inject_incident.py` tự gửi token tương ứng.
+
 ## 3. Tùy chọn: chạy Langfuse local bằng Docker Compose
 
 Phần này không bắt buộc và không được cộng điểm riêng. Chỉ dùng khi nhóm không truy cập được project chung/cloud và máy có Docker Desktop đủ tài nguyên.

@@ -7,10 +7,10 @@ from pydantic import BaseModel, Field
 
 
 class ChatRequest(BaseModel):
-    user_id: str = Field(..., examples=["u_team_01"])
-    session_id: str = Field(..., examples=["s_demo_01"])
-    feature: str = Field(default="qa", examples=["qa", "summary"])
-    message: str = Field(..., min_length=1)
+    user_id: str = Field(..., min_length=1, max_length=128, examples=["u_team_01"])
+    session_id: str = Field(..., min_length=1, max_length=128, examples=["s_demo_01"])
+    feature: str = Field(default="qa", min_length=1, max_length=64, examples=["qa", "summary"])
+    message: str = Field(..., min_length=1, max_length=4000)
 
 
 class ChatResponse(BaseModel):
@@ -38,6 +38,7 @@ class LogRecord(BaseModel):
     tokens_in: int | None = None
     tokens_out: int | None = None
     cost_usd: float | None = None
+    quality_score: float | None = None
     error_type: str | None = None
     tool_name: str | None = None
     payload: dict[str, Any] | None = None
