@@ -4,15 +4,13 @@
 
 - Tên nhóm: K4-DAY13-2A202602015
 - Repository URL: https://github.com/nguyendamkien/K4-DAY13-2A202602015-NguyenDamKien
-- Commit SHA chính: `742a239`; evidence checkpoints: `5a2216d`, `f221561` trên branch `codex/complete-day13`
+- Commit SHA cuối: `376a7cf`
 - Thành viên nhóm:
   1. Nguyễn Đàm Kiên — 2A202602015
   2. Lê Nguyễn Phước Thành — 2A202601032
   3. Nguyễn Văn Nam — 2A202601973
   4. Lê Kim Tính — 2A202601560
   5. Trần Chí Hiền — 2A202601162
-- Branch hoàn thiện đang kiểm tra: `codex/complete-day13`; remote snapshot đã fetch tới `origin/main` tại `d6ee702`.
-- Ba branch đóng góp bổ sung dự kiến: `thanh/metrics-dashboard`, `nam/sre-alerts`, `hien/qa-investigator`.
 
 ## 2. Kết quả kỹ thuật
 
@@ -60,8 +58,8 @@ Với mỗi thành viên, ghi rõ nhiệm vụ và link commit/PR tương ứng.
 
 | Thành viên | Phần việc | Commit/PR | Điều đã học |
 |---|---|---|---|
-| Nguyễn Đàm Kiên — 2A202602015 | API & Middleware; hoàn thiện logging, PII, tracing, dashboard, alerts, tests và report | `origin/kiennd` / `3db2ced`; hoàn thiện local tại `codex/complete-day13` | correlation ID, redaction và điều tra latency |
+| Nguyễn Đàm Kiên — 2A202602015 | API & Middleware; hoàn thiện logging, PII, tracing, dashboard và report | `kiennd` | correlation ID, redaction và điều tra latency |
 | Lê Nguyễn Phước Thành — 2A202601032 | Metrics & Dashboard: đo `error_rate_pct`, hoàn thiện dashboard contract/runtime 6 nhóm chỉ số | `thanh/metrics-dashboard` | error rate, threshold và dashboard contract |
 | Nguyễn Văn Nam — 2A202601973 | SRE & Alerts: thiết lập SLO, alert rules và runbook xử lý sự cố | `nam/sre-alerts` | symptom-based alert, owner và mitigation |
-| Lê Kim Tính — 2A202601560 | Security Engineer theo branch nhóm | `origin/tinhlk` / `5914e11` | PII redaction, metrics và kiểm tra log |
+| Lê Kim Tính — 2A202601560 | Security Engineer theo branch nhóm | `tinhlk` | PII redaction, metrics và kiểm tra log |
 | Trần Chí Hiền — 2A202601162 | QA & Chief Investigator: load test, trace sub-component RAG/LLM, điều tra Challenge và hoàn thiện report | `hien/qa-investigator` | kiểm thử hồi quy, trace waterfall và evidence điều tra |
